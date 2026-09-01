@@ -10,7 +10,7 @@ export const getApiBaseUrl = (): string => {
 
   if (!rawUrl || rawUrl === "undefined" || rawUrl === "null") {
     if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-      rawUrl = "https://vmc-hmi-backend.onrender.com";
+      rawUrl = "https://vmc-hmi-backend-j8dc.onrender.com";
     } else {
       rawUrl = "http://localhost:5000";
     }

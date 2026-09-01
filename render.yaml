@@ -48,7 +48,7 @@ services:
       - key: NODE_VERSION
         value: "20.18.0"
       - key: VITE_API_BASE_URL
-        value: https://vmc-hmi-backend.onrender.com
+        value: https://vmc-hmi-backend-j8dc.onrender.com
     routes:
       - type: rewrite
         source: /*
