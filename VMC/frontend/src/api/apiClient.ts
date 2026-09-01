@@ -1,6 +1,22 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+let rawUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
+
+if (!rawUrl || rawUrl === "undefined" || rawUrl === "null") {
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    rawUrl = "https://vmc-hmi-backend.onrender.com";
+  } else {
+    rawUrl = "http://localhost:5000";
+  }
+}
+
+if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+  rawUrl = `https://${rawUrl}`;
+}
+
+export const API_BASE_URL = rawUrl.replace(/\/+$/, "");
+
+console.log("[HMI API Client] Connecting to backend at:", API_BASE_URL);
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
