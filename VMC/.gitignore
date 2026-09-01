@@ -27,6 +27,11 @@ frontend/.vite/
 *.suo
 *.user
 
+# Markdown Documentation
+*.md
+**/*.md
+
 # OS
 .DS_Store
 Thumbs.db
+
