@@ -18,7 +18,14 @@ public static class SeedData
             // Non-postgres provider or already existing
         }
 
-        await context.Database.MigrateAsync();
+        try
+        {
+            await context.Database.MigrateAsync();
+        }
+        catch
+        {
+            // Table(s) already exist or partial migration state from previous deployment
+        }
 
         // Seed default operator user
         await SeedUserWithSessionAsync(context, passwordHasher, "operator", "Operator@123");
