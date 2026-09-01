@@ -40,7 +40,6 @@ services:
   - type: web
     name: vmc-hmi-frontend
     runtime: static
-    plan: free
     buildCommand: cd VMC/frontend && npm ci && npm run build
     staticPublishPath: VMC/frontend/dist
     envVars:
