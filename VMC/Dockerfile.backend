@@ -15,6 +15,6 @@ RUN dotnet publish "VmcHmi.Api.csproj" -c Release -o /app/publish /p:UseAppHost=
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 EXPOSE 8080
-ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 10000
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "VmcHmi.Api.dll"]
