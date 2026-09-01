@@ -139,10 +139,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("HmiPolicy", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
+        policy.AllowAnyOrigin()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
     });
 });
 

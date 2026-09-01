@@ -15,7 +15,8 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default)
     {
-        return await _context.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
+        var clean = username.Trim().ToLower();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == clean, ct);
     }
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default)
