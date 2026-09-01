@@ -1,28 +1,32 @@
 import axios from "axios";
 
-let rawUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
-
-if (!rawUrl || rawUrl === "undefined" || rawUrl === "null") {
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    rawUrl = "https://vmc-hmi-backend.onrender.com";
-  } else {
-    rawUrl = "http://localhost:5000";
+export const getApiBaseUrl = (): string => {
+  const custom = localStorage.getItem("hmi_custom_backend_url")?.trim();
+  if (custom) {
+    return custom.replace(/\/+$/, "");
   }
-}
 
-if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
-  rawUrl = `https://${rawUrl}`;
-}
+  let rawUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
 
-export const API_BASE_URL = rawUrl.replace(/\/+$/, "");
+  if (!rawUrl || rawUrl === "undefined" || rawUrl === "null") {
+    if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      rawUrl = "https://vmc-hmi-backend.onrender.com";
+    } else {
+      rawUrl = "http://localhost:5000";
+    }
+  }
 
-console.log("[HMI API Client] Connecting to backend at:", API_BASE_URL);
+  if (!rawUrl.startsWith("http://") && !rawUrl.startsWith("https://")) {
+    rawUrl = `https://${rawUrl}`;
+  }
 
-export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-});
+  return rawUrl.replace(/\/+$/, "");
+};
+
+export const apiClient = axios.create();
 
 apiClient.interceptors.request.use((config) => {
+  config.baseURL = getApiBaseUrl();
   const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

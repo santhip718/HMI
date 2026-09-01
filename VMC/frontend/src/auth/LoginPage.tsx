@@ -1,12 +1,25 @@
 import { useState } from "react";
 import { useAuth } from "./AuthContext";
+import { getApiBaseUrl } from "../api/apiClient";
 
 export const LoginPage = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+  const [customUrl, setCustomUrl] = useState(getApiBaseUrl());
   const { login } = useAuth();
+
+  const handleSaveServerUrl = () => {
+    if (customUrl.trim()) {
+      localStorage.setItem("hmi_custom_backend_url", customUrl.trim());
+    } else {
+      localStorage.removeItem("hmi_custom_backend_url");
+    }
+    setShowServerConfig(false);
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,8 +27,13 @@ export const LoginPage = () => {
     setError(null);
     try {
       await login(username, password);
-    } catch (err) {
-      setError((err as Error).message || "Login failed");
+    } catch (err: any) {
+      const msg = err?.message || "Login failed";
+      if (msg.includes("404")) {
+        setError(`Cannot reach API at ${getApiBaseUrl()}. Please verify your backend Render service is Live.`);
+      } else {
+        setError(msg);
+      }
     } finally {
       setIsLoggingIn(false);
     }
@@ -111,10 +129,44 @@ export const LoginPage = () => {
             )}
           </button>
         </form>
+
+        {/* Server Endpoint Indicator & Config Toggle */}
+        <div style={{ marginTop: "18px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+            <span>Backend: <code style={{ color: "var(--accent-cyan)" }}>{getApiBaseUrl()}</code></span>
+            <button
+              type="button"
+              onClick={() => setShowServerConfig(!showServerConfig)}
+              style={{ background: "transparent", border: "none", color: "var(--text-secondary)", cursor: "pointer", textDecoration: "underline", fontSize: "0.7rem" }}
+            >
+              {showServerConfig ? "Close" : "Change URL"}
+            </button>
+          </div>
+
+          {showServerConfig && (
+            <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+              <input
+                type="text"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                placeholder="https://vmc-hmi-backend.onrender.com"
+                style={{ flex: 1, padding: "6px 10px", background: "rgba(0,0,0,0.3)", border: "1px solid var(--border-glass)", borderRadius: "6px", color: "#fff", fontSize: "0.75rem" }}
+              />
+              <button
+                type="button"
+                onClick={handleSaveServerUrl}
+                style={{ padding: "6px 12px", background: "var(--accent-cyan)", color: "#000", fontWeight: "bold", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem" }}
+              >
+                Set
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
+
 
 
 
