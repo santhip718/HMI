@@ -1,0 +1,26 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+
+# Node
+frontend/node_modules
+frontend/dist
+node_modules
+
+# VCS
+.git/
+.gitignore
+
+# Env / secrets
+.env
+.env.local
+.env.production
+
+# Docs
+*.md
+DEPLOYMENT.md
+
+# Containers
+Dockerfile.frontend
+*.sln

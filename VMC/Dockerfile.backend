@@ -1,0 +1,23 @@
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
+
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY ["backend/src/VmcHmi.Api/VmcHmi.Api.csproj", "VmcHmi.Api/"]
+COPY ["backend/src/VmcHmi.Infrastructure/VmcHmi.Infrastructure.csproj", "VmcHmi.Infrastructure/"]
+COPY ["backend/src/VmcHmi.Application/VmcHmi.Application.csproj", "VmcHmi.Application/"]
+COPY ["backend/src/VmcHmi.Domain/VmcHmi.Domain.csproj", "VmcHmi.Domain/"]
+RUN dotnet restore "VmcHmi.Api/VmcHmi.Api.csproj"
+COPY . .
+WORKDIR "/src/backend/src/VmcHmi.Api"
+RUN dotnet build "VmcHmi.Api.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "VmcHmi.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "VmcHmi.Api.dll"]

@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    environment:
+      - JWT__SIGNINGKEY=${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env or environment}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=learning_portal;Username=postgres;Password=${DB_PASSWORD:?Set DB_PASSWORD in .env or environment};SearchPath=hmi
+      - FrontendUrl=${FRONTEND_URL:-http://localhost:80}
+    ports:
+      - "5000:80"
+      - "5001:443"
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../Dockerfile.frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: learning_portal
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env or environment}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-hmi-schema.sql:/docker-entrypoint-initdb.d/init-hmi-schema.sql
+
+volumes:
+  postgres_data:

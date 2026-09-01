@@ -1,0 +1,32 @@
+# Build and dependency artifacts
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.vite/
+*.tsbuildinfo
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+Logs/
+logs/
+*.log
+npm-debug.log*
+
+# IDE & Editor files
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# OS Generated
+.DS_Store
+Thumbs.db

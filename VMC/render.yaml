@@ -1,0 +1,53 @@
+# Render Blueprint for VMC Operator HMI
+# Deploy via: Render Dashboard -> New -> Blueprint -> point this repo (uses render.yaml)
+# OR `render blueprint launch` CLI (requires the render-cli).
+
+databases:
+  - name: vmc-hmi-db
+    databaseName: hmi
+    user: hmi
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow incoming from anywhere (demo only)
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend API (ASP.NET Core, dockerized)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: vmc-hmi-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: Dockerfile.backend
+    dockerContext: .
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:80
+      - key: JWT__SIGNINGKEY
+        generateValue: true
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: vmc-hmi-db
+          property: connectionString
+      - key: FrontendUrl
+        value: https://vmc-hmi-frontend.onrender.com
+
+  # ---------------------------------------------------------------------------
+  # Frontend (React static site)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: vmc-hmi-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build
+    publishPath: frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://vmc-hmi-backend.onrender.com
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache

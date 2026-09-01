@@ -1,0 +1,14 @@
+node_modules/
+.DS_Store
+dist/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+/bin
+/obj
+/TestResults
+*.docx
+*.vs/
