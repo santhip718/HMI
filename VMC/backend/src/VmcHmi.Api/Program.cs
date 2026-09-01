@@ -30,6 +30,10 @@ using VmcHmi.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Bind to Render PORT or default to 8080
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var jwtSettings = builder.Configuration.GetSection("Jwt");
