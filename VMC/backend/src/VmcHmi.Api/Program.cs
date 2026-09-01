@@ -56,7 +56,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<HmiDbContext>(options =>
     options.UseNpgsql(connectionString,
-        o => o.MigrationsHistoryTable("_hmi_migrations", "hmi")));
+        o => o.MigrationsHistoryTable("__EFMigrationsHistory", "public")));
+
 
 builder.Services.AddScoped<IMachineSessionRepository, MachineSessionRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -229,7 +230,7 @@ static string BuildConnectionStringFromUrl(string url)
         Database = database,
         Username = username,
         Password = password,
-        SearchPath = "hmi",
+        SearchPath = "hmi,public",
         SslMode = Npgsql.SslMode.Prefer
     };
     return builder.ConnectionString;

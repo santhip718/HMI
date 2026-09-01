@@ -9,6 +9,15 @@ public static class SeedData
 {
     public static async Task EnsureSeededAsync(HmiDbContext context, IPasswordHasher passwordHasher)
     {
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("CREATE SCHEMA IF NOT EXISTS hmi;");
+        }
+        catch
+        {
+            // Non-postgres provider or already existing
+        }
+
         await context.Database.MigrateAsync();
 
         // Seed default operator user
