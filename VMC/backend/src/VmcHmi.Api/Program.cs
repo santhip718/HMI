@@ -44,24 +44,15 @@ var signingKey = jwtSettings["SigningKey"]
 builder.Host.UseSerilog((ctx, lc) =>
     lc.ReadFrom.Configuration(ctx.Configuration));
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    connectionString = builder.Configuration["DATABASE_URL"];
-}
-if (IsConnectionUrl(connectionString))
-{
-    connectionString = BuildConnectionStringFromUrl(connectionString!);
-}
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    connectionString = "Host=localhost;Port=5432;Database=learning_portal;Username=postgres;Password=postgres;SearchPath=hmi";
-}
+var rawConnection = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration["DATABASE_URL"]
+    ?? "Host=localhost;Port=5432;Database=learning_portal;Username=postgres;Password=postgres;SearchPath=hmi,public";
+
+var connectionString = NormalizeConnectionString(rawConnection);
 
 builder.Services.AddDbContext<HmiDbContext>(options =>
     options.UseNpgsql(connectionString,
         o => o.MigrationsHistoryTable("__EFMigrationsHistory", "public")));
-
 
 builder.Services.AddScoped<IMachineSessionRepository, MachineSessionRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -174,31 +165,6 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Resilient database seeding with retry loop for cloud cold-starts
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<HmiDbContext>();
-    var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    var logger = scope.ServiceProvider.GetRequiredService<IAppLogger<Program>>();
-
-    const int maxRetries = 10;
-    for (var attempt = 1; attempt <= maxRetries; attempt++)
-    {
-        try
-        {
-            logger.LogInformation("Attempting database migration and seeding (attempt {Attempt}/{MaxRetries})...", attempt, maxRetries);
-            await SeedData.EnsureSeededAsync(db, hasher);
-            logger.LogInformation("Database migration and seeding completed successfully.");
-            break;
-        }
-        catch (Exception ex) when (attempt < maxRetries)
-        {
-            logger.LogWarning("Database connection not ready yet ({Message}). Retrying in 3 seconds...", ex.Message);
-            await Task.Delay(3000);
-        }
-    }
-}
-
 app.UseSerilogRequestLogging();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
@@ -212,6 +178,40 @@ app.MapGet("/health", () => Results.Ok(new { status = "healthy", time = DateTime
 
 app.MapControllers();
 
+// Background database initialization to ensure instant HTTP server readiness
+_ = Task.Run(async () =>
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HmiDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        var logger = scope.ServiceProvider.GetRequiredService<IAppLogger<Program>>();
+
+        const int maxRetries = 15;
+        for (var attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                logger.LogInformation("Attempting database migration and seeding (attempt {Attempt}/{MaxRetries})...", attempt, maxRetries);
+                await SeedData.EnsureSeededAsync(db, hasher);
+                logger.LogInformation("Database migration and seeding completed successfully.");
+                break;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Database not ready yet ({Message}). Retrying in 3 seconds...", ex.Message);
+                if (attempt < maxRetries)
+                    await Task.Delay(3000);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Background startup note: {ex.Message}");
+    }
+});
+
 app.Run();
 
 static bool IsConnectionUrl(string? value) =>
@@ -219,24 +219,44 @@ static bool IsConnectionUrl(string? value) =>
     (value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
      value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase));
 
-static string BuildConnectionStringFromUrl(string url)
+static string NormalizeConnectionString(string raw)
 {
-    var uri = new Uri(url);
-    var userInfo = uri.UserInfo.Split(':', 2);
-    var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
-    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
-    var database = uri.AbsolutePath.TrimStart('/');
-
-    var builder = new Npgsql.NpgsqlConnectionStringBuilder
+    try
     {
-        Host = uri.Host,
-        Port = uri.IsDefaultPort ? 5432 : uri.Port,
-        Database = database,
-        Username = username,
-        Password = password,
-        SearchPath = "hmi,public",
-        SslMode = Npgsql.SslMode.Prefer
-    };
-    return builder.ConnectionString;
+        if (IsConnectionUrl(raw))
+        {
+            var uri = new Uri(raw);
+            var userInfo = uri.UserInfo.Split(':', 2);
+            var username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty;
+            var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+            var database = uri.AbsolutePath.TrimStart('/');
+            var port = uri.IsDefaultPort || uri.Port <= 0 ? 5432 : uri.Port;
+
+            var builder = new Npgsql.NpgsqlConnectionStringBuilder
+            {
+                Host = uri.Host,
+                Port = port,
+                Database = database,
+                Username = username,
+                Password = password,
+                SearchPath = "hmi,public",
+                SslMode = Npgsql.SslMode.Prefer
+            };
+            return builder.ConnectionString;
+        }
+        else
+        {
+            var builder = new Npgsql.NpgsqlConnectionStringBuilder(raw);
+            if (string.IsNullOrWhiteSpace(builder.SearchPath))
+                builder.SearchPath = "hmi,public";
+            builder.SslMode = Npgsql.SslMode.Prefer;
+            return builder.ConnectionString;
+        }
+    }
+    catch
+    {
+        return raw;
+    }
 }
+
 
