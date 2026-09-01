@@ -42,7 +42,7 @@ services:
     runtime: static
     plan: free
     buildCommand: cd VMC/frontend && npm ci && npm run build
-    publishPath: VMC/frontend/dist
+    staticPublishPath: VMC/frontend/dist
     envVars:
       - key: VITE_API_BASE_URL
         value: https://vmc-hmi-backend.onrender.com
