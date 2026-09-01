@@ -1,0 +1,56 @@
+# Render Blueprint for VMC Operator HMI
+# Automatically deploys PostgreSQL, ASP.NET Core API, and React Frontend
+
+databases:
+  - name: vmc-hmi-db
+    databaseName: hmi
+    user: hmi
+    plan: free
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow incoming from anywhere
+
+services:
+  # ---------------------------------------------------------------------------
+  # Backend API (ASP.NET Core .NET 8, dockerized)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: vmc-hmi-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: VMC/Dockerfile.backend
+    dockerContext: VMC
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:80
+      - key: JWT__SIGNINGKEY
+        generateValue: true
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: vmc-hmi-db
+          property: connectionString
+      - key: FrontendUrl
+        value: https://vmc-hmi-frontend.onrender.com
+
+  # ---------------------------------------------------------------------------
+  # Frontend (React + Vite static SPA)
+  # ---------------------------------------------------------------------------
+  - type: web
+    name: vmc-hmi-frontend
+    runtime: static
+    plan: free
+    buildCommand: cd VMC/frontend && npm ci && npm run build
+    publishPath: VMC/frontend/dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://vmc-hmi-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
