@@ -20,11 +20,14 @@ services:
     plan: free
     dockerfilePath: Dockerfile.backend
     dockerContext: .
+    healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: "8080"
       - key: ASPNETCORE_URLS
-        value: http://+:80
+        value: http://+:8080
       - key: JWT__SIGNINGKEY
         generateValue: true
       - key: ConnectionStrings__DefaultConnection

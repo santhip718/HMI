@@ -169,21 +169,41 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Resilient database seeding with retry loop for cloud cold-starts
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<HmiDbContext>();
     var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-    await SeedData.EnsureSeededAsync(db, hasher);
+    var logger = scope.ServiceProvider.GetRequiredService<IAppLogger<Program>>();
+
+    const int maxRetries = 10;
+    for (var attempt = 1; attempt <= maxRetries; attempt++)
+    {
+        try
+        {
+            logger.LogInformation("Attempting database migration and seeding (attempt {Attempt}/{MaxRetries})...", attempt, maxRetries);
+            await SeedData.EnsureSeededAsync(db, hasher);
+            logger.LogInformation("Database migration and seeding completed successfully.");
+            break;
+        }
+        catch (Exception ex) when (attempt < maxRetries)
+        {
+            logger.LogWarning("Database connection not ready yet ({Message}). Retrying in 3 seconds...", ex.Message);
+            await Task.Delay(3000);
+        }
+    }
 }
 
 app.UseSerilogRequestLogging();
-
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
-app.UseHttpsRedirection();
 app.UseCors("HmiPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Root & Health check endpoints for cloud load balancers / Render
+app.MapGet("/", () => Results.Ok(new { status = "healthy", service = "VMC HMI API", time = DateTime.UtcNow }));
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", time = DateTime.UtcNow }));
 
 app.MapControllers();
 
@@ -209,7 +229,9 @@ static string BuildConnectionStringFromUrl(string url)
         Database = database,
         Username = username,
         Password = password,
-        SearchPath = "hmi"
+        SearchPath = "hmi",
+        SslMode = Npgsql.SslMode.Prefer
     };
     return builder.ConnectionString;
 }
+
